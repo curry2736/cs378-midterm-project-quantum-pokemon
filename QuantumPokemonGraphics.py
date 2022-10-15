@@ -1,4 +1,4 @@
-from Quantum import fiftyPercentAtk, measure, nullify, reflect, twentyFivePercentAtk
+from Quantum import fiftyPercentAtk, measure, nullify, reflect, twentyFivePercentAtk, breakout_room_banishment, infinite_randomness
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister, Aer, execute
 import numpy as np
 import matplotlib.pyplot as plt
@@ -7,28 +7,42 @@ from qiskit.quantum_info import Statevector
 import sys
 import random
 from PySide6 import QtCore, QtWidgets, QtGui 
+import time
 
 move_history_map = { 
     "50%": 10,
-    "25%": 20
+    "25%": 20,
+    "breakout room banishment": 0,
+    "garbage": 0
 }
 
-def dmg_cnts(measure_results, move_history, first_player, type_list):
+def dmg_cnts(measure_results, move_history, first_player, type_list, player_skip):
+    # returns [first player, second player]
+    #print(measure_results)
     bases = [0, 0]
-    multipliers = []
-    multipliers.append(types[type_list[first_player]]["attack"])
-    multipliers.append(types[type_list[1 - first_player]]["attack"])
+    multipliers = [0,0]
+    multipliers[first_player] = types[type_list[first_player]]["attack"]
+    multipliers[(1 + first_player) % 2] = types[type_list[1 - first_player]]["attack"]
     final_dmg = [0, 0]
     if move_history[-1] == "reflect":
         multipliers[0], multipliers[1] = multipliers[1], multipliers[0]
-        bases[0] = move_history_map[move_history[-2]]
+        bases[0] = move_history_map[move_history[-2]] # base damage done to first player = their own move
     elif move_history[-1] == "nullify":
         bases[1] = move_history_map[move_history[-2]]
+    elif "breakout room banishment" in move_history[-2:]:
+        if move_history[-1] == "breakout room banishment": # first player getting banished 
+            if measure_results[0] == 1:
+                player_skip[first_player] = True
+        if move_history[-2] == "breakout room banishment": # second player getting banished
+            if measure_results[1] == 1:
+                player_skip[1 - first_player] = True
     else:
         bases[0] = move_history_map[move_history[-1]]
         bases[1] = move_history_map[move_history[-2]]
+    
     final_dmg[0] = measure_results[0] * bases[0] * multipliers[0]
     final_dmg[1] = measure_results[1] * bases[1] * multipliers[1]
+
     return final_dmg
 
 aux = 2
@@ -61,7 +75,8 @@ types = {
 class MyWidget(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
-
+        self.player_skip = [False, False]
+        
         self.hello = ["Hallo Welt", "Hei maailma", "Hola Mundo", "Привет мир"]
 
         self.button = QtWidgets.QPushButton("Start game!")
@@ -111,8 +126,18 @@ class MyWidget(QtWidgets.QWidget):
         self.hbox.addWidget(self.typeButton2)
         self.typeButton1.clicked.connect(lambda: self.setPlayerOneType("Dr. Davis"))
         self.typeButton2.clicked.connect(lambda: self.setPlayerOneType("Pikachu"))
+        self.player_skip = [False, False]
 
+        try:
+            self.button.clicked.disconnect()
+        except RuntimeError:
+            pass
+        
+
+        self.button.setText("Keep Going")
+        self.button.clicked.connect(self.putHboxBack)
         self.button.setParent(None)
+
 
     def setPlayerOneType(self, selected_type):
         self.type_list[0] = selected_type
@@ -138,22 +163,30 @@ class MyWidget(QtWidgets.QWidget):
         self.initGameLoop()
     
     def initGameLoop(self):
-        twentyFiveButton = QtWidgets.QPushButton("25%")
-        fiftyButton = QtWidgets.QPushButton("50%")
-        reflectButton = QtWidgets.QPushButton("reflect")
-        nullifyButton = QtWidgets.QPushButton("nullify")
+        self.twentyFiveButton = QtWidgets.QPushButton("25%")
+        self.fiftyButton = QtWidgets.QPushButton("50%")
+        self.reflectButton = QtWidgets.QPushButton("reflect")
+        self.nullifyButton = QtWidgets.QPushButton("nullify")
+        self.infinite_randomness_button = QtWidgets.QPushButton("infinite randomness")
+        self.breakout_room_banishment_button = QtWidgets.QPushButton("breakout room banishment")
 
-        twentyFiveButton.clicked.connect(lambda: self.makeMove("25%"))
-        fiftyButton.clicked.connect(lambda: self.makeMove("50%"))
-        reflectButton.clicked.connect(lambda: self.makeMove("reflect"))
-        nullifyButton.clicked.connect(lambda: self.makeMove("nullify"))
+        self.twentyFiveButton.clicked.connect(lambda: self.makeMove("25%"))
+        self.fiftyButton.clicked.connect(lambda: self.makeMove("50%"))
+        self.reflectButton.clicked.connect(lambda: self.makeMove("reflect"))
+        self.nullifyButton.clicked.connect(lambda: self.makeMove("nullify"))
+        self.infinite_randomness_button.clicked.connect(lambda: self.makeMove("infinite randomness"))
+        self.breakout_room_banishment_button.clicked.connect(lambda: self.makeMove("breakout room banishment"))
+
         
-        self.hbox.addWidget(twentyFiveButton)
-        self.hbox.addWidget(fiftyButton)
-        self.hbox.addWidget(reflectButton)
-        self.hbox.addWidget(nullifyButton)
+        self.hbox.addWidget(self.twentyFiveButton)
+        self.hbox.addWidget(self.fiftyButton)
+        self.hbox.addWidget(self.reflectButton)
+        self.hbox.addWidget(self.nullifyButton)
+        self.hbox.addWidget(self.infinite_randomness_button)
+        self.hbox.addWidget(self.breakout_room_banishment_button)
 
-    def makeMove(self, move):
+    def callMove(self, move):
+        print("callMove")
         if move == '50%':
             fiftyPercentAtk(self.qc, types[self.type_list[self.player]]["attack"], self.player)
         elif move == 'reflect':
@@ -161,31 +194,141 @@ class MyWidget(QtWidgets.QWidget):
         elif move == '25%':
             twentyFivePercentAtk(self.qc, types[self.type_list[self.player]]["attack"], self.player)
         elif move == 'nullify':
-            nullify(self.qc, types[self.type_list[self.player]]["defense"], self.player, self.move_history[-1])
+            inverse_prob = 0
+
+            #infinite randomness cannot be nullified
+            if self.move_history[-1] != 'infinite randomness':
+                if self.move_history[-1] == '50%':
+                    inverse_prob = 0.5
+                elif self.move_history[-1] == '25%':
+                    inverse_prob = 0.25
+                elif self.move_history[-1] == 'breakout_room_banishment':
+                    inverse_prob =  types[self.type_list[1 - self.player]]["attack"] / 10
+            nullify(self.qc, types[self.type_list[self.player]]["defense"], self.player, inverse_prob)
+        elif move == 'breakout room banishment':
+            breakout_room_banishment(self.qc, types[self.type_list[self.player]]["attack"] / 10, self.player)
+        elif move == 'infinite randomness':
+            infinite_randomness(self.qc, move_history_map)
         self.move_history.append(move)
         self.player = 1 - self.player
-        self.move_count += 1
+        self.move_count += 1        
+
+    def makeMove(self, move):
+        print("makeMove")
+        #ARISREI: moved the two if statements to above callMove
+        #seems to break it even further. makes logical sense though since
+        #you want to show results before the next move is applied
+
+        #skipped if breakout room banishment was successful
+
+        self.callMove(move)
+
+        if self.move_count % 2 == 1:
+            if (move != "garbage"):
+                self.text.setText(f"Player {self.player + 1} is up")
+            if self.player_skip[self.player] == True:
+                self.setPlayerSkipped()
+        
+        if self.move_count > 0 and self.move_count % 2 == 0:
+            self.showResults()
+
+    def setPlayerSkipped(self):
+        print("Player " + str(1 + self.player) +", your turn was skipped!")
+        self.removeAllButtons()
+        try:
+            self.button.clicked.disconnect()
+        except RuntimeError:
+            pass
+        self.button.clicked.connect(self.continueSkipped)
+        self.layout.addWidget(self.button)
+        self.text.setText("Player " + str(1 + self.player) +", your turn was skipped!")
+        self.player_skip[self.player] = False
         
 
-        if self.move_count > 0 and self.move_count % 2 == 0:
-            results = measure(self.qc, self.move_history)
-            first_player = 1 - ((self.move_count % 4) // 2)
-            dmgs = dmg_cnts(results, self.move_history, first_player, self.type_list)
-            print("Player " + str(first_player + 1) + " received " + str(dmgs[0]) + " damage")
-            print("Player " + str((1 - first_player) + 1) + " received " + str(dmgs[1]) + " damage")
-            self.health_list[first_player] -= dmgs[0]
-            self.health_list[1 - first_player] -= dmgs[1]
-            self.p1Health.setText(str(self.health_list[0]))
-            self.p2Health.setText(str(self.health_list[1]))
+    def showResults(self):
+        print("Show results")
+        self.player_skip = [False, False]
+        results = measure(self.qc, self.move_history)
+        first_player = 1 - ((self.move_count % 4) // 2)
+        dmgs = dmg_cnts(results, self.move_history, first_player, self.type_list, self.player_skip)
+        
+        self.removeAllButtons()
+        
+        self.text.setText(f"Player {first_player + 1} received {dmgs[0]} damage\nPlayer {(1 - first_player) + 1} received {dmgs[1]} damage")
+        try:
+            self.button.clicked.disconnect()
+        except RuntimeError:
+            pass
+        self.button.clicked.connect(self.putHboxBack)
+        self.button.setText("Back to the game")
+        self.layout.addWidget(self.button)
+        
+        self.health_list[first_player] -= dmgs[0]
+        self.health_list[1 - first_player] -= dmgs[1]
+        self.p1Health.setText(str(self.health_list[0]))
+        self.p2Health.setText(str(self.health_list[1]))
 
-            if self.health_list[0] <= 0 or self.health_list[1] <= 0:
-                print("done lol")
 
-            self.qc = QuantumCircuit(3,2)
-        if self.move_count > 0 and self.move_count % 4 == 0: # keeps the game fair
+
+        if self.health_list[0] <= 0 or self.health_list[1] <= 0:
+            print("done lol")
+        self.qc = QuantumCircuit(3,2)
+
+        if self.move_count % 4 == 0: # keeps the game fair
             self.player = 1 - self.player
-        self.text.setText(f"Player {self.player + 1} is up")
+            
+    def putHboxBack(self):
+        print("putHboxBack")
+        #self.layout.addLayout(self.hbox)
+        self.button.setParent(None)
+        #self.button.setText("Next player")
+        if self.player_skip[self.player] == True:
+            self.setPlayerSkipped()
+        else:
+            self.text.setText(f"Player {self.player + 1} is up")
+            self.putButtonsIn()
 
+    
+    def continueSkipped(self):
+        print("continueSkipped")
+        try:
+            self.button.clicked.disconnect()
+        except RuntimeError:
+            pass
+        moves_before = self.move_count
+
+        self.makeMove("garbage")
+        if (moves_before % 2 == 0):
+            #self.putButtonsIn()
+            self.button.setText("Next player's turn")
+            self.button.clicked.connect(self.putHboxBack)
+        else:
+            #self.button.setParent(None)
+            self.button.setText("Show results")
+            self.button.clicked.connect(self.showResults)
+
+
+    def removeAllButtons(self):
+        print("removeallButtons")
+        self.twentyFiveButton.setParent(None)
+        self.fiftyButton.setParent(None)
+        self.reflectButton.setParent(None)
+        self.nullifyButton.setParent(None)
+        self.infinite_randomness_button.setParent(None)
+        self.breakout_room_banishment_button.setParent(None)
+        self.p1Health.setParent(None)
+        self.p2Health.setParent(None)
+    
+    def putButtonsIn(self):
+        print("putButtonsIn")
+        self.hbox.addWidget(self.twentyFiveButton)
+        self.hbox.addWidget(self.fiftyButton)
+        self.hbox.addWidget(self.reflectButton)
+        self.hbox.addWidget(self.nullifyButton)
+        self.hbox.addWidget(self.infinite_randomness_button)
+        self.hbox.addWidget(self.breakout_room_banishment_button)
+        self.p1Box.addWidget(self.p1Health)
+        self.p2Box.addWidget(self.p2Health)
     
 
 
