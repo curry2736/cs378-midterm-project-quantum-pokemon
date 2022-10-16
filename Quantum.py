@@ -46,7 +46,7 @@ def nullify(qc, probability, current_player, inverse_prob):
 
 
 def breakout_room_banishment(qc, probability, current_player):
-    createUnitary(qc, probability, 1 - current_player)
+    createUnitary(qc, 1, 1 - current_player)
     
 
 
@@ -54,7 +54,7 @@ def measure(qc, move_history):
     qc.measure(range(2), range(2))
     counts = execute(qc, backend = Aer.get_backend('qasm_simulator'), shots=1).result().get_counts(qc)
     result = list(counts.keys())[0]
-    qc.draw('mpl', filename='circuit.png')
+    #qc.draw('mpl', filename='circuit.png')
 
     #returning [p1, p2]
     return [int(result[1]), int(result[0])]

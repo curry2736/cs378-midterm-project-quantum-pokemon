@@ -215,10 +215,6 @@ class MyWidget(QtWidgets.QWidget):
 
     def makeMove(self, move):
         print("makeMove")
-        #ARISREI: moved the two if statements to above callMove
-        #seems to break it even further. makes logical sense though since
-        #you want to show results before the next move is applied
-
         #skipped if breakout room banishment was successful
 
         self.callMove(move)
@@ -279,9 +275,7 @@ class MyWidget(QtWidgets.QWidget):
             
     def putHboxBack(self):
         print("putHboxBack")
-        #self.layout.addLayout(self.hbox)
         self.button.setParent(None)
-        #self.button.setText("Next player")
         if self.player_skip[self.player] == True:
             self.setPlayerSkipped()
         else:
