@@ -72,6 +72,9 @@ class MyWidget(QtWidgets.QWidget):
         self.move_history = []
         self.move_count = 0
 
+        self.p1Pic = QtWidgets.QLabel(self)
+        self.p2Pic = QtWidgets.QLabel(self)
+        
         self.p1Health = QtWidgets.QLabel(alignment=QtCore.Qt.AlignCenter, objectName="p1Health")
         self.p2Health = QtWidgets.QLabel(alignment=QtCore.Qt.AlignCenter, objectName="p2Health")
 
@@ -100,6 +103,8 @@ class MyWidget(QtWidgets.QWidget):
         self.playerBox.addLayout(self.p1Box)
         self.playerBox.addLayout(self.p2Box)
     
+        self.p1Box.addWidget(self.p1Pic)
+        self.p2Box.addWidget(self.p2Pic)
         self.p1Box.addWidget(self.p1Health)
         self.p2Box.addWidget(self.p2Health)
         self.p1Health.hide()
@@ -149,13 +154,27 @@ class MyWidget(QtWidgets.QWidget):
         print(f"dmg cnts - {self.player_skip}")
         return final_dmg
     
-    def setPlayerType(self, type, player):
-        self.type_list[player] = type
-        if player < 1:
+    def setPlayerType(self, specifiedType, player):
+        self.type_list[player] = specifiedType
+        if player < 1: # first player
+            if specifiedType == "Pikachu":
+                p1Image = QtGui.QPixmap("pikachu.png").scaledToHeight(250)
+                self.p1Pic.setPixmap(p1Image)
+            elif specifiedType == "Dr. Davis":
+                p1Image = QtGui.QPixmap("dr_davis.png").scaledToHeight(250)
+                self.p1Pic.setPixmap(p1Image)
             self.text.setText("Player 2, select your type")
+            self.typeButton1.clicked.disconnect()
+            self.typeButton2.clicked.disconnect()
             self.typeButton1.clicked.connect(lambda: self.setPlayerType("Dr. Davis", 1))
             self.typeButton2.clicked.connect(lambda: self.setPlayerType("Pikachu", 1))
-        else:
+        else: # second player 
+            if specifiedType == "Pikachu":
+                p2Image = QtGui.QPixmap("pikachu.png").scaledToHeight(250)
+                self.p2Pic.setPixmap(p2Image)
+            elif specifiedType == "Dr. Davis":
+                p2Image = QtGui.QPixmap("dr_davis.png").scaledToHeight(250)
+                self.p2Pic.setPixmap(p2Image)
             self.text.setText("Game has started!")
             self.typeButton1.setParent(None)
             self.typeButton2.setParent(None)
@@ -200,6 +219,7 @@ class MyWidget(QtWidgets.QWidget):
         self.move_count += 1      
         if (self.move_count % 2 == 1):
             self.player = 1 - self.player
+            self.reflectButton.show()
   
 
 
@@ -294,7 +314,12 @@ class MyWidget(QtWidgets.QWidget):
 
             #if self.move_count % 4 == 0: # keeps the game fair
                 #self.player = 1 - self.player
-            
+        if (self.type_list[self.player] == "Pikachu"):
+            self.breakout_room_banishment_button.hide()
+        if (self.type_list[self.player] == "Dr. Davis"):
+            self.infinite_randomness_button.hide()
+        if (self.move_count % 2 == 0):
+            self.reflectButton.hide()
             #check if next player should be skipped
             if self.player_skip[self.player] == True:
                 self.button.clicked.connect(lambda: self.setupBattle("skipped from show results"))
