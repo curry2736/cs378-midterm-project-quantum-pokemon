@@ -67,7 +67,7 @@ class MyWidget(QtWidgets.QWidget):
 
         self.type_list = ["", ""]
         self.health_list = []
-        self.player = random.randint(0, 1)
+        self.player = 0
         self.qc = QuantumCircuit(3, 2)
         self.move_history = []
         self.move_count = 0
@@ -197,8 +197,10 @@ class MyWidget(QtWidgets.QWidget):
         elif move == 'infinite randomness':
             infinite_randomness(self.qc, move_history_map)
         self.move_history.append(move)
-        self.player = 1 - self.player
-        self.move_count += 1        
+        self.move_count += 1      
+        if (self.move_count % 2 == 1):
+            self.player = 1 - self.player
+  
 
 
     def addMoveButtons(self):
@@ -257,7 +259,7 @@ class MyWidget(QtWidgets.QWidget):
             for i in range(self.hbox.count()):
                 self.hbox.itemAt(i).widget().hide()
             results = measure(self.qc, self.move_history)
-            first_player = 1 - ((self.move_count % 4) // 2)
+            first_player = 1 - ((self.move_count // 2) % 2)
             dmgs = self.dmg_cnts(results, first_player)
             print(f"show results - {self.player_skip}")
             self.text.setText(f"Player 1 received {dmgs[0]} damage\nPlayer 2 received {dmgs[1]} damage")
@@ -290,8 +292,8 @@ class MyWidget(QtWidgets.QWidget):
           
             self.qc = QuantumCircuit(3,2)
 
-            if self.move_count % 4 == 0: # keeps the game fair
-                self.player = 1 - self.player
+            #if self.move_count % 4 == 0: # keeps the game fair
+                #self.player = 1 - self.player
             
             #check if next player should be skipped
             if self.player_skip[self.player] == True:
@@ -343,7 +345,8 @@ class MyWidget(QtWidgets.QWidget):
             self.button.show()
             self.button.setText("Continue to results")
             self.button.clicked.connect(lambda: self.setupBattle("show results"))
-        self.player = 1 - self.player
+        if (self.move_count % 2 == 1):
+            self.player = 1 - self.player
 
 
     
