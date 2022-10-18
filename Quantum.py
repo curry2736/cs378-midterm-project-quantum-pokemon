@@ -82,13 +82,15 @@ if __name__ == "__main__":
     
     qc = QuantumCircuit(3,3)
     twentyFivePercentAtk(qc, 1)
+    qc.barrier()
     reflect(qc, 0.3, 0)
-    qc.measure([0,1], [0,1])
     qc.draw('mpl', filename='reflect-25-30.png')
 
 
     qc = QuantumCircuit(3,3)
     fiftyPercentAtk(qc, 0)
-    nullify(qc, 1, 1, "50%")
-    qc.measure([0,1], [0,1])
+    qc.barrier()
+
+    nullify(qc, 1, 1, .5)
+    
     qc.draw('mpl', filename='nullify-fifty.png')
