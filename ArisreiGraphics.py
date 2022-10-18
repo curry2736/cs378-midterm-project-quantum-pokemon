@@ -260,10 +260,10 @@ class MyWidget(QtWidgets.QWidget):
                 elif self.move_history[-1] == '25%':
                     inverse_prob = 0.25
                 elif self.move_history[-1] == 'breakout_room_banishment':
-                    inverse_prob =  types[self.type_list[1 - self.player]]["attack"] / 10
+                    inverse_prob =  types[self.type_list[1 - self.player]]["attack"] / 5
             nullify(self.qc, types[self.type_list[self.player]]["defense"], self.player, inverse_prob)
         elif move == 'breakout room banishment':
-            breakout_room_banishment(self.qc, types[self.type_list[self.player]]["attack"] / 10, self.player)
+            breakout_room_banishment(self.qc, types[self.type_list[self.player]]["attack"] / 5, self.player)
         elif move == 'infinite randomness':
             val = infinite_randomness(self.qc)
             move_history_map['infinite randomness'] = val
