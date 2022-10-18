@@ -78,6 +78,12 @@ if __name__ == "__main__":
     # infinite_randomness(qc)
     # qc.draw('mpl', filename='infinite-rando.png')
 
+    qc = QuantumCircuit(3,3)
+    twentyFivePercentAtk(qc, 0)
+    fiftyPercentAtk(qc, 1)  
+    qc.measure([0, 1], [0, 1])
+
+    qc.draw('mpl', filename='two-attacks.png')
 
     
     qc = QuantumCircuit(3,3)
