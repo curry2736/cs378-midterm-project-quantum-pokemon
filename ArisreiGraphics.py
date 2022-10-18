@@ -186,11 +186,9 @@ class MyWidget(QtWidgets.QWidget):
         elif "breakout room banishment" in self.move_history[-2:]:
             if self.move_history[-1] == "breakout room banishment": # first player getting banished 
                 if measure_results[first_player] == 1:
-                    print(f"banishing player {1 + first_player}")
                     self.player_skip[first_player] = True
             if self.move_history[-2] == "breakout room banishment": # second player getting banished
                 if measure_results[1 - first_player] == 1:
-                    print(f"banishing player {2 - first_player}")
                     self.player_skip[1 - first_player] = True
         else:
             #bases are standard, grab them from the move history map
@@ -276,7 +274,6 @@ class MyWidget(QtWidgets.QWidget):
 
 
     def addMoveButtons(self):
-        print("adding move buttons")     
         if self.move_count == 0:
             self.hbox.addWidget(self.twentyFiveButton)
             self.hbox.addWidget(self.fiftyButton)
@@ -309,7 +306,6 @@ class MyWidget(QtWidgets.QWidget):
             self.playerBox.addLayout(self.p1Box)
             self.playerBox.addLayout(self.p2Box)
         elif situation == "default": # setting up a new move
-            print("running default")
             self.button.hide()
             self.text.setText(f"Player {self.player + 1}, it is your turn")
             self.text.show()
@@ -321,7 +317,6 @@ class MyWidget(QtWidgets.QWidget):
             self.showSkip("move screen")
         elif situation == "skipped from show results":
             self.showSkip("show results")
-        elif situation == "skipped from skip screen":
             self.showSkip("skip screen")
         elif situation == "show results":
             for i in range(self.hbox.count()):
