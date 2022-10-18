@@ -1,3 +1,4 @@
+from wsgiref.util import setup_testing_defaults
 from Quantum import fiftyPercentAtk, measure, nullify, reflect, twentyFivePercentAtk, breakout_room_banishment, infinite_randomness
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister, Aer, execute
 import numpy as np
@@ -45,11 +46,14 @@ types = {
 
 
 class MyWidget(QtWidgets.QWidget):
+
+    #ui stuff, you can skip over this
     def __init__(self):
         super().__init__()
         self.player_skip = [False, False]
         
         self.button = QtWidgets.QPushButton("Start game!")
+        self.helpButton = QtWidgets.QPushButton("View Instructions")
         self.text = QtWidgets.QLabel("Welcome to Quantum Pokemon!",
                                      alignment=QtCore.Qt.AlignCenter)
 
@@ -77,7 +81,7 @@ class MyWidget(QtWidgets.QWidget):
         
         self.p1Health = QtWidgets.QLabel(alignment=QtCore.Qt.AlignCenter, objectName="p1Health")
         self.p2Health = QtWidgets.QLabel(alignment=QtCore.Qt.AlignCenter, objectName="p2Health")
-
+        self.moveText = QtWidgets.QLabel(alignment=QtCore.Qt.AlignLeft)
         self.twentyFiveButton = QtWidgets.QPushButton("25%")
         self.fiftyButton = QtWidgets.QPushButton("50%")
         self.reflectButton = QtWidgets.QPushButton("reflect")
@@ -94,8 +98,10 @@ class MyWidget(QtWidgets.QWidget):
 
         #parent of everything
         self.layout.addWidget(self.text)
+        self.layout.addWidget(self.moveText)
         self.layout.addLayout(self.playerBox)
         self.layout.addWidget(self.button)
+        self.layout.addWidget(self.helpButton)
         self.layout.addLayout(self.hbox)
         
 
@@ -107,14 +113,17 @@ class MyWidget(QtWidgets.QWidget):
         self.p2Box.addWidget(self.p2Pic)
         self.p1Box.addWidget(self.p1Health)
         self.p2Box.addWidget(self.p2Health)
-        self.p1Health.hide()
+        self.p1Health.show()
         self.p2Health.show()
 
+        self.helpButton.clicked.connect(self.showInstructions)
         self.button.clicked.connect(self.startGame)
     
     @QtCore.Slot()
     def startGame(self):
-        print("started game")
+        self.text.setAlignment(QtCore.Qt.AlignCenter)
+        self.moveText.hide()
+        self.helpButton.hide()
         self.text.setText("Player 1, select your type")
         self.hbox.addWidget(self.typeButton1) 
         self.hbox.addWidget(self.typeButton2)
@@ -122,15 +131,53 @@ class MyWidget(QtWidgets.QWidget):
         self.typeButton1.clicked.connect(lambda: self.setPlayerType("Dr. Davis", 0))
         self.typeButton2.clicked.connect(lambda: self.setPlayerType("Pikachu", 0))
 
+    def showInstructions(self):
+        self.text.setText("""
+        Instructions:
+        At the start of the game, each player will choose their respective pokemon.
+        Each pokemon has different health, attack, and defense.
+        Each player will have a turn to choose a move.
+        All moves have some sort of quantum concept applied during their executions.
+        Each set of two moves has a separate quantum circuit.
+        Once two moves have passed, the results of the moves will be shown.
+        After every set of two moves, the order of who goes first will be switched.
+        Once any player’s health goes below 0, the game will end.
+        """)
+        self.text.setAlignment(QtCore.Qt.AlignLeft)
+        self.moveText.setText("""
+        Move Descriptions:
+        50% - Move has a 50% chance of hitting for standard damage
+            Uses Hadamard gate
+        25%- Move has a 25% chance of hitting for significant damage
+            Uses unitary that puts qubit into a state that has 25% chance of measuring 1
+        Reflect - Depending on the user’s pokemon defense, the user has a chance to “reflect” the opponent’s damage back to them
+            Uses controlled swap
+            Be careful, this could have unintended consequences!
+        Nullify - Depending on the user’s pokemon defense, the user has a chance to nullify the opponent’s move
+            Uses controlled swap and finds the inverse unitary of the opponent’s respective move’s unitary
+        Breakout Room Banishment - Depending on the user’s pokemon attack, has a chance of forcing the opponent to skip their next move
+        Infinite Randomness - Puts hadamards on every qubit
+            Creates a secondary quantum circuit that creates a random base damage by applying hadamards on every qubit
+            Measures all qubits to find bitstring
+            Uses bitstring’s value to assign base damage
+
+        """)
+
+        self.helpButton.hide()
+        self.button.setText("Start Game")
+
+    # primary quantum function 
+    # returns [first player, second player]
+    # calculates damage or applies effect on players based on their moves
     def dmg_cnts(self, measure_results, first_player):
-        # returns [first player, second player]
-        #print(measure_results)
         self.player_skip = [False, False]
         bases = [0, 0]
         multipliers = [0,0]
         multipliers[0] = types[self.type_list[0]]["attack"]
         multipliers[1] = types[self.type_list[1]]["attack"]
         final_dmg = [0, 0]
+
+        #determine multipliers based on move used
         if self.move_history[-1] == "reflect":
             multipliers[0], multipliers[1] = multipliers[1], multipliers[0]
             bases[0] = move_history_map[self.move_history[-2]] # base damage done to first player = their own move
@@ -146,23 +193,25 @@ class MyWidget(QtWidgets.QWidget):
                     print(f"banishing player {2 - first_player}")
                     self.player_skip[1 - first_player] = True
         else:
+            #bases are standard, grab them from the move history map
             bases[0] = move_history_map[self.move_history[-1]]
             bases[1] = move_history_map[self.move_history[-2]]
         
+        #calculate final damage
         final_dmg[0] = measure_results[0] * bases[0] * multipliers[0]
         final_dmg[1] = measure_results[1] * bases[1] * multipliers[1]
-        print(f"dmg cnts - {self.player_skip}")
         return final_dmg
     
     def setPlayerType(self, specifiedType, player):
         self.type_list[player] = specifiedType
         if player < 1: # first player
             if specifiedType == "Pikachu":
-                p1Image = QtGui.QPixmap("pikachu.png").scaledToHeight(250)
+                p1Image = QtGui.QPixmap("pikachu.png",).scaledToHeight(250)
                 self.p1Pic.setPixmap(p1Image)
             elif specifiedType == "Dr. Davis":
                 p1Image = QtGui.QPixmap("dr_davis.png").scaledToHeight(250)
                 self.p1Pic.setPixmap(p1Image)
+            self.p1Pic.setAlignment(QtCore.Qt.AlignCenter)
             self.text.setText("Player 2, select your type")
             self.typeButton1.clicked.disconnect()
             self.typeButton2.clicked.disconnect()
@@ -175,6 +224,7 @@ class MyWidget(QtWidgets.QWidget):
             elif specifiedType == "Dr. Davis":
                 p2Image = QtGui.QPixmap("dr_davis.png").scaledToHeight(250)
                 self.p2Pic.setPixmap(p2Image)
+            self.p2Pic.setAlignment(QtCore.Qt.AlignCenter)
             self.text.setText("Game has started!")
             self.typeButton1.setParent(None)
             self.typeButton2.setParent(None)
@@ -185,6 +235,7 @@ class MyWidget(QtWidgets.QWidget):
         #skipped if breakout room banishment was successful
         self.callMove(move)
         if self.move_count % 2 == 0:
+            #show results since moves are called in sets of 2
             self.setupBattle("show results")
         elif self.player_skip[self.player] == True:
             self.setupBattle("skip")
@@ -194,11 +245,11 @@ class MyWidget(QtWidgets.QWidget):
     
     def callMove(self, move):
         if move == '50%':
-            fiftyPercentAtk(self.qc, types[self.type_list[self.player]]["attack"], self.player)
+            fiftyPercentAtk(self.qc, self.player)
         elif move == 'reflect':
             reflect(self.qc, types[self.type_list[self.player]]["defense"], self.player)
         elif move == '25%':
-            twentyFivePercentAtk(self.qc, types[self.type_list[self.player]]["attack"], self.player)
+            twentyFivePercentAtk(self.qc, self.player)
         elif move == 'nullify':
             inverse_prob = 0
 
@@ -214,7 +265,8 @@ class MyWidget(QtWidgets.QWidget):
         elif move == 'breakout room banishment':
             breakout_room_banishment(self.qc, types[self.type_list[self.player]]["attack"] / 10, self.player)
         elif move == 'infinite randomness':
-            infinite_randomness(self.qc, move_history_map)
+            val = infinite_randomness(self.qc)
+            move_history_map['infinite randomness'] = val
         self.move_history.append(move)
         self.move_count += 1      
         if (self.move_count % 2 == 1):
@@ -234,7 +286,6 @@ class MyWidget(QtWidgets.QWidget):
             self.hbox.addWidget(self.breakout_room_banishment_button)
         
         else:
-            print("showing buttons")
             for i in range(self.hbox.count()):
                 self.hbox.itemAt(i).widget().show()
 
@@ -265,9 +316,6 @@ class MyWidget(QtWidgets.QWidget):
             self.setHealthText()
 
             self.addMoveButtons()
-            #if self.
-            #self.playerBox.addLayout(self.p1Box)
-            #self.playerBox.addLayout(self.p2Box)
 
         elif situation == "skip":
             self.showSkip("move screen")
@@ -281,7 +329,6 @@ class MyWidget(QtWidgets.QWidget):
             results = measure(self.qc, self.move_history)
             first_player = 1 - ((self.move_count // 2) % 2)
             dmgs = self.dmg_cnts(results, first_player)
-            print(f"show results - {self.player_skip}")
             self.text.setText(f"Player 1 received {dmgs[0]} damage\nPlayer 2 received {dmgs[1]} damage")
 
             self.button.show()
@@ -293,6 +340,8 @@ class MyWidget(QtWidgets.QWidget):
 
             self.p1Health.setText(str(self.health_list[0]))
             self.p2Health.setText(str(self.health_list[1]))
+
+            #one or both players died
             if self.health_list[0] <= 0 or self.health_list[1] <= 0:
                 for i in range(self.hbox.count()):
                     self.hbox.itemAt(i).widget().hide()
@@ -309,11 +358,11 @@ class MyWidget(QtWidgets.QWidget):
                     self.text.setText(f"Player 2 died!")
 
                 return
-          
+            
+            #create a new quantum circuit for next set of moves
             self.qc = QuantumCircuit(3,2)
 
-            #if self.move_count % 4 == 0: # keeps the game fair
-                #self.player = 1 - self.player
+        #certain moves cant be used by certain types
         if (self.type_list[self.player] == "Pikachu"):
             self.breakout_room_banishment_button.hide()
         if (self.type_list[self.player] == "Dr. Davis"):
@@ -327,13 +376,6 @@ class MyWidget(QtWidgets.QWidget):
                 self.button.clicked.connect(lambda: self.setupBattle("default"))
     
     def showSkip(self, origin):
-        #how to find children --
-        # for child in self.hbox.findChildren(QtWidgets.QPushButton):
-        #     print(f"rawr, {child}")
-        # for i in range(self.layout.count()):
-        #     print("rawr" + str(self.layout.itemAt(i)))
-
-        #self.player_skip[self.player] = False
         self.move_count += 1
         self.move_history.append("garbage")
 

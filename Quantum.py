@@ -9,24 +9,29 @@ aux = 2
 #atk = 1
 #defense = 0
 
-def infinite_randomness(qc, move_history_map):
+def infinite_randomness(qc):
+    
+    # whether the move "lands" is random
     qc.h([0,1,2])
 
     #find a random base dmg count
     auxCirc = QuantumCircuit(3,3)
+    # sets up random damage values
     auxCirc.h([0,1,2])
     auxCirc.measure([0,1,2], [0,1,2])
+    auxCirc.draw('mpl', filename='infinite-random-aux.png')
     counts = execute(auxCirc, backend = Aer.get_backend('qasm_simulator'), shots=1).result().get_counts(auxCirc)
     result = list(counts.keys())[0]
     random_base = 50 * (int(result, 2) / 8)
-    move_history_map['infinite randomness'] = random_base
+    print(random_base)
+    return random_base
 
-def fiftyPercentAtk(qc, multiplier, current_player):
+def fiftyPercentAtk(qc, current_player):
     atk = current_player
     defense = 1 - current_player
     qc.h(defense)
 
-def twentyFivePercentAtk(qc, multiplier, current_player):
+def twentyFivePercentAtk(qc, current_player):
     defense = 1 - current_player
     createUnitary(qc, 0.25, defense)
 
@@ -46,7 +51,7 @@ def nullify(qc, probability, current_player, inverse_prob):
 
 
 def breakout_room_banishment(qc, probability, current_player):
-    createUnitary(qc, 1, 1 - current_player)
+    createUnitary(qc, probability, 1 - current_player)
     
 
 
@@ -68,14 +73,22 @@ def createUnitaryInverseControlled(qc, probability, control, target):
 
 
 if __name__ == "__main__":
+    
+    # qc = QuantumCircuit(3, 3)
+    # infinite_randomness(qc)
+    # qc.draw('mpl', filename='infinite-rando.png')
+
+
+    
+    qc = QuantumCircuit(3,3)
+    twentyFivePercentAtk(qc, 1)
+    reflect(qc, 0.3, 0)
+    qc.measure([0,1], [0,1])
+    qc.draw('mpl', filename='reflect-25-30.png')
+
 
     qc = QuantumCircuit(3,3)
-    fiftyPercentAtk(qc, 1, 0)
+    fiftyPercentAtk(qc, 0)
     nullify(qc, 1, 1, "50%")
-
     qc.measure([0,1], [0,1])
-    qc.draw('mpl', filename='circuit.png')
-
-    counts = execute(qc, backend = Aer.get_backend('qasm_simulator'), shots=1024).result().get_counts(qc)
-    print(counts)
-    plot_histogram(counts, filename='histogram.png')
+    qc.draw('mpl', filename='nullify-fifty.png')
