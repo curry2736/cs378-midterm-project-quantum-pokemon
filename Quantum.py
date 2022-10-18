@@ -19,11 +19,9 @@ def infinite_randomness(qc):
     # sets up random damage values
     auxCirc.h([0,1,2])
     auxCirc.measure([0,1,2], [0,1,2])
-    auxCirc.draw('mpl', filename='infinite-random-aux.png')
     counts = execute(auxCirc, backend = Aer.get_backend('qasm_simulator'), shots=1).result().get_counts(auxCirc)
     result = list(counts.keys())[0]
     random_base = 50 * (int(result, 2) / 8)
-    print(random_base)
     return random_base
 
 def fiftyPercentAtk(qc, current_player):
@@ -72,62 +70,3 @@ def createUnitaryInverseControlled(qc, probability, control, target):
     qc.cu(2 * np.arcsin(probability ** 0.5),np.pi,np.pi,0,control, target)
 
 
-if __name__ == "__main__":
-    
-    # qc = QuantumCircuit(3, 3)
-    # infinite_randomness(qc)
-    # qc.draw('mpl', filename='infinite-rando.png')
-
-    qc = QuantumCircuit(3,3)
-    twentyFivePercentAtk(qc, 0)
-    qc.draw('mpl', filename='twentyfive.png')
-
-    qc = QuantumCircuit(3,3)
-    fiftyPercentAtk(qc, 1)
-    qc.draw('mpl', filename='fiftypercent.png')
-
-
-    qc = QuantumCircuit(3,3)
-    reflect(qc, .5, 1)
-    qc.draw('mpl', filename='reflect.png')
-
-
-    qc = QuantumCircuit(3,3)
-    nullify(qc, .5, 0, .25)
-    qc.draw('mpl', filename='nullify.png')
-
-    qc = QuantumCircuit(3, 3)
-    infinite_randomness(qc)
-    qc.draw('mpl', filename='infinite_randomness.png')
-
-
-    qc = QuantumCircuit(3, 3)
-    breakout_room_banishment(qc, .33, 1)
-    qc.draw('mpl', filename='brb.png')
-
-
-
-
-
-    qc = QuantumCircuit(3,3)
-    twentyFivePercentAtk(qc, 0)
-    fiftyPercentAtk(qc, 1)  
-    qc.measure([0, 1], [0, 1])
-
-    qc.draw('mpl', filename='two-attacks.png')
-
-    
-    qc = QuantumCircuit(3,3)
-    twentyFivePercentAtk(qc, 1)
-    qc.barrier()
-    reflect(qc, 0.3, 0)
-    qc.draw('mpl', filename='reflect-25-30.png')
-
-
-    qc = QuantumCircuit(3,3)
-    fiftyPercentAtk(qc, 0)
-    qc.barrier()
-
-    nullify(qc, 1, 1, .5)
-    
-    qc.draw('mpl', filename='nullify-fifty.png')
